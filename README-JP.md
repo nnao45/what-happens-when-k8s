@@ -57,7 +57,7 @@ Deployment を作成したいということが分かると、`DeploymentV1Beta1
 
 ### API groups and version negotiation
 
-話を続ける前に説明すべきこととして、Kubernetes は _バージョン管理された_ API を使っており、それらは API グループに分類されているということです。API グループは、似たリソースをカテゴライズしてより簡単に推測できるようにすることを目的にしています。それはまた、単一のモノリシックな API に対する良い代替手段を提供します。Deployment の API グループは `apps` と呼ばれ、最新バージョンは `v1 `です。Deployment のマニフェストの上部に、`apiVersion: apps/v1` と記載する必要があるのはこのためです。
+話を続ける前に説明すべきこととして、Kubernetes は _バージョン管理された_ API を使っており、それらは API グループに分類されているということです。API グループは、似たリソースをカテゴライズしてより簡単に推測できるようにすることを目的にしています。それはまた、単一のモノリシックな API に対する良い代替手段を提供します。Deployment の API グループは `apps` と呼ばれ、最新バージョンは `v1`です。Deployment のマニフェストの上部に、`apiVersion: apps/v1` と記載する必要があるのはこのためです。
 
 いずれにしても、kubectl がランタイムオブジェクトを生成した後、[適切な API グループとバージョンを見つけ](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/cmd/run.go#L580-L597)、その後、そのリソースの様々な REST セマンティクスを認識する[バージョン化されたクライアントを組み立てます](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/cmd/run.go#L598)。この検出ステージはバージョンネゴシエーションと呼ばれ、全ての利用可能な API グループを取得するために、kubectl がリモート API 上の `/apis` パスをスキャンすることを含みます。kube-apiserver はそのスキーマドキュメントをこのパスで公開しているため、クライアントは容易にディスカバリを行うことができます。
 
@@ -135,7 +135,7 @@ v1.8 に含まれている認可方式の一例です:
 
 どのようにして kube-apisever はリクエストを受け取った際に何をすべきか知るのでしょうか。実際のところ、リクエストが実際に届く”前”に極めて複雑で連続した処理が実行されます。1から始めましょう。バイナリファイルが実行されるときです。
 
-1. `kube-apiserver`のバイナリが実行されたとき、[サーバーチェイン（server chain）が作成](https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/server.go#L119)され、API Aggregation を可能にします。これは基本的にはマルチ apiserver ををサポートするものです（私達が気にする必要はありません）。
+1. `kube-apiserver`のバイナリが実行されたとき、[サーバーチェイン（server chain）が作成](https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/server.go#L119)され、API Aggregation を可能にします。これは基本的にはマルチ apiserver をサポートするものです（私達が気にする必要はありません）。
 1. このとき、デフォルトの実装のみを提供する[汎用的な apiserver が作られます](https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/server.go#L149)。
 1. 生成された OpenAPI スキーマ は[apiserver の設定情報](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/server/config.go#L149)に配置されます。
 1. kube-apiserver はスキーマの中で明示されたすべての API グループに対して、抽象化された汎用的なストレージとして動作するように[ストレージ・プロバイダー（storage provider）](https://github.com/kubernetes/kubernetes/blob/c7a1a061c3dc5acabcc0c35b3b96a6935dccf546/pkg/master/master.go#L410)を設定します。これが kube-apiserver がリソースの状態にアクセスまたは変更するときに対話する相手です。
