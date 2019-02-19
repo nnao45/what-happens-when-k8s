@@ -46,7 +46,7 @@ Kubernetes の素晴らしい部分の 1 つは、使い勝手の良い API を�
 
 kubectl が最初に行うことはクライアントサイドの検証です。これにより、 _必ず_ 失敗するリクエスト(例：サポートされていないリソースの作成や、[不正なイメージ](https://github.com/kubernetes/kubernetes/blob/9a480667493f6275c22cc9cd0f69fb0c75ef3579/pkg/kubectl/cmd/run.go#L251)の使用)は即座に失敗し、kube-apiserver へリクエストが行われません。このため不要な負荷が軽減され、システムのパフォーマンスが向上します。
 
-検証後、kubectl は kube-apiserver へ送信する HTTP リクエストの組み立てを開始します。全ての Kubernetes へのアクセスや状態の変更の試みは API サーバを介して行われ、API サーバは etcd と通信を行います。kubectl クライアントも同様です。HTTPリクエストを組み立てるために kubernetes は[ジェネレータ](https://kubernetes.io/docs/reference/kubectl/conventions/#generators)と呼ばれるものを使用します。ジェネレータとはシリアライズを行う抽象概念です。
+検証後、kubectl は kube-apiserver へ送信する HTTP リクエストの組み立てを開始します。全ての Kubernetes へのアクセスや状態の変更の試みは API サーバを介して行われ、API サーバは etcd と通信を行います。kubectl クライアントも同様です。HTTP リクエストを組み立てるために kubernetes は[ジェネレータ](https://kubernetes.io/docs/reference/kubectl/conventions/#generators)と呼ばれるものを使用します。ジェネレータとはシリアライズを行う抽象概念です。
 
 分かりづらいかもしれませんが、実は `kubectl run` で Deployment だけでなく複数のリソースタイプを指定できます。これを機能させるために、kubectl は ジェネレータ名が `--generator` で明示的に指定されていない限り、リソースタイプを[推測します](https://github.com/kubernetes/kubernetes/blob/7650665059e65b4b22375d1e28da5306536a12fb/pkg/kubectl/cmd/run.go#L231-L257)。
 
@@ -61,7 +61,7 @@ Deployment を作成したいということが分かると、`DeploymentV1Beta1
 
 いずれにしても、kubectl がランタイムオブジェクトを生成した後、[適切な API グループとバージョンを見つけ](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/cmd/run.go#L580-L597)、その後、そのリソースの様々な REST セマンティクスを認識する[バージョン化されたクライアントを組み立てます](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/cmd/run.go#L598)。この検出ステージはバージョンネゴシエーションと呼ばれ、全ての利用可能な API グループを取得するために、kubectl がリモート API 上の `/apis` パスをスキャンすることを含みます。kube-apiserver はそのスキーマドキュメントをこのパスで公開しているため、クライアントは容易にディスカバリを行うことができます。
 
-パフォーマンスを向上させるために、kubectl はその OpenAPI スキーマを `~/.kube/cache/discovery` ディレクトリに[キャッシュします](https://github.com/kubernetes/kubernetes/blob/7650665059e65b4b22375d1e28da5306536a12fb/pkg/kubectl/cmd/util/factory_client_access.go#L117)。もし、API ディスカバリの動作を実際に確認したいのであれば、そのディレクトリを削除し、-v フラグを最大にして実行してください。API バージョンを見つけようとする全てのリクエストを確認することができます。
+パフォーマンスを向上させるために、kubectl はその OpenAPI スキーマを `~/.kube/cache/discovery` ディレクトリに[キャッシュします](https://github.com/kubernetes/kubernetes/blob/7650665059e65b4b22375d1e28da5306536a12fb/pkg/kubectl/cmd/util/factory_client_access.go#L117)。もし、API ディスカバリの動作を実際に確認したいのであれば、そのディレクトリを削除し、`-v` フラグを最大にして実行してください。API バージョンを見つけようとする全てのリクエストを確認することができます。
 たくさん出力されます！
 
 最後のステップは、実際にリクエストを[送信](https://github.com/kubernetes/kubernetes/blob/7650665059e65b4b22375d1e28da5306536a12fb/pkg/kubectl/cmd/run.go#L628)することです。それが実行され、成功したレスポンスを受け取ると、kubectl は[希望したアウトプットフォーマット](https://github.com/kubernetes/kubernetes/blob/7650665059e65b4b22375d1e28da5306536a12fb/pkg/kubectl/cmd/run.go#L403-L407)で成功のメッセージを出力します。
@@ -89,14 +89,14 @@ Deployment を作成したいということが分かると、`DeploymentV1Beta1
 
 リクエストが送られて、次に何が起こるでしょうか。ここで kube-apiserver が登場します。すでに説明したように、kube-apiserver は永続化そしてクラスタの状態を取得するためのシステムコンポーネントとクライアントの主要なインターフェースです。その機能を実行するには、誰が送信者か検証できる必要があります。この過程は認証と呼ばれます。
 
-apiserver はどのようにリクエストを認証するでしょうか。サーバが最初に起動する時、ユーザに与えられたすべての[CLIフラグ](https://kubernetes.io/docs/admin/kube-apiserver/)を確認し、適切な認証方式のリストを組み立てます。例を見てみましょう。`--client-ca-file`が渡された場合は、x509認証方式を追加し、`--token-auth-file`が与えられた事を確認した時、token認証方式をリストに追加します。リクエストを受信する度に、[1つでも成功するまで認証方式チェーンを通して実行されます](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/union/union.go#L54):
+apiserver はどのようにリクエストを認証するでしょうか。サーバが最初に起動する時、ユーザに与えられたすべての[CLI フラグ](https://kubernetes.io/docs/admin/kube-apiserver/)を確認し、適切な認証方式のリストを組み立てます。例を見てみましょう。`--client-ca-file`が渡された場合は、x509 認証方式を追加し、`--token-auth-file`が与えられた事を確認した時、token 認証方式をリストに追加します。リクエストを受信する度に、[1つでも成功するまで認証方式チェーンを通して実行されます](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/union/union.go#L54):
 
 
-- [x509 ハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/x509/x509.go#L60) はHTTPリクエストがCAルート証明書によって署名されたTLS鍵でエンコードされていることを検証します
-- [bearer トークンハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/bearertoken/bearertoken.go#L38) は提供された(HTTP Authorizationヘッダに指定されている)トークンが`--token-auth-file`で指定されたディスク上のファイルに存在するか検証します
-- [basicauth ハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/plugin/pkg/authenticator/request/basicauth/basicauth.go#L37) はHTTP Basic認証の資格情報が自身のローカル状態と同様に一致するか検証します
+- [x509 ハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/x509/x509.go#L60) は HTTP リクエストが CA ルート証明書によって署名された TLS 鍵でエンコードされていることを検証します
+- [bearer トークンハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/bearertoken/bearertoken.go#L38) は提供された(HTTP Authorization ヘッダに指定されている)トークンが`--token-auth-file`で指定されたディスク上のファイルに存在するか検証します
+- [basicauth ハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/plugin/pkg/authenticator/request/basicauth/basicauth.go#L37) は HTTP Basic 認証の資格情報が自身のローカル状態と同様に一致するか検証します
 
-_すべての_ 認証方式が失敗すると、[リクエストは失敗](https://github.com/kubernetes/apiserver/blob/20bfbdf738a0643fe77ffd527b88034dcde1b8e3/pkg/authentication/request/union/union.go#L71)して集約されたエラーが返却されます。認証が成功すると`Authorization`ヘッダがリクエストから取り除かれ、リクエストのコンテキストに[ユーザ情報が追加されます](https://github.com/kubernetes/apiserver/blob/e30df5e70ef9127ea69d607207c894251025e55b/pkg/endpoints/filters/authentication.go#L71-L75)。これにより将来の段階(認可およびアドミッションコントローラなど)で、以前に確立されたユーザのIDにアクセスできるようになります。1つの認証方式が成功すると、リクエストは続行します。
+_すべての_ 認証方式が失敗すると、[リクエストは失敗](https://github.com/kubernetes/apiserver/blob/20bfbdf738a0643fe77ffd527b88034dcde1b8e3/pkg/authentication/request/union/union.go#L71)して集約されたエラーが返却されます。認証が成功すると`Authorization`ヘッダがリクエストから取り除かれ、リクエストのコンテキストに[ユーザ情報が追加されます](https://github.com/kubernetes/apiserver/blob/e30df5e70ef9127ea69d607207c894251025e55b/pkg/endpoints/filters/authentication.go#L71-L75)。これにより将来の段階(認可およびアドミッションコントローラなど)で、以前に確立されたユーザの ID にアクセスできるようになります。1つの認証方式が成功すると、リクエストは続行します。
 
 ### Authorization
 
@@ -104,9 +104,9 @@ _すべての_ 認証方式が失敗すると、[リクエストは失敗](https
 
 kube-apiserver が認可を扱う方法は認証ととても似ています。フラグの入力に基づいて、すべての受信リクエスト毎に認可方式を組み立てます。_すべての_ 認可方式がリクエストを拒否した場合、リクエストの結果として`Forbidden`が応答され、[それ以降は処理されません](https://github.com/kubernetes/apiserver/blob/e30df5e70ef9127ea69d607207c894251025e55b/pkg/endpoints/filters/authorization.go#L60)。
 
-v1.8に含まれている認可方式の一例です:
+v1.8 に含まれている認可方式の一例です:
 
-- [webhook](https://github.com/kubernetes/apiserver/blob/d299c880c4e33854f8c45bdd7ab599fb54cbe575/plugin/pkg/authorizer/webhook/webhook.go#L143), クラスタ外のHTTP(S)サービスと対話します
+- [webhook](https://github.com/kubernetes/apiserver/blob/d299c880c4e33854f8c45bdd7ab599fb54cbe575/plugin/pkg/authorizer/webhook/webhook.go#L143), クラスタ外の HTTP(S) サービスと対話します
 - [ABAC](https://github.com/kubernetes/kubernetes/blob/77b83e446b4e655a71c315ad3f3890dc2a220ccf/pkg/auth/authorizer/abac/abac.go#L223), 静的ファイルで定義されているポリシーを適用します
 - [RBAC](https://github.com/kubernetes/kubernetes/blob/8db5ca1fbb280035b126faf0cd7f0420cec5b2b6/plugin/pkg/auth/authorizer/rbac/rbac.go#L43), 管理者が k8s リソースとして追加した RBAC ロールを適用します
 - [Node](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/plugin/pkg/auth/authorizer/node/node_authorizer.go#L67), ノードクライアントすなわち kubelet は、自分自身にホストされているリソースのみアクセスできる事を保証します
@@ -117,7 +117,7 @@ v1.8に含まれている認可方式の一例です:
 
 さて、この時点で我々は kube-apiserver に認証され認可されました。なにが残っているでしょうか。kube-apiserver の視点では、誰であるか信じ続行することを許可していますが、Kubernetes ではシステムの他の部分が、何が起こるべきで何が起こるべきでないかについて、強い判断を持ちます。ここで[アドミッションコントローラ](https://kubernetes.io/docs/admin/admission-controllers/#what-are-they)が登場します。
 
-認可はユーザが権限を持っているかどうかについて答える事に焦点を当てていますが、一方でアドミッションコントローラはリクエストを傍受してクラスタのより広い期待値とルールにマッチするよう保証します。これらはオブジェクトがetcdで永続化される前の最後の砦です。そのため操作が予期せぬ結果や悪影響を生じないよう、残りのシステム検査をまとめて行います。
+認可はユーザが権限を持っているかどうかについて答える事に焦点を当てていますが、一方でアドミッションコントローラはリクエストを傍受してクラスタのより広い期待値とルールにマッチするよう保証します。これらはオブジェクトが etcd で永続化される前の最後の砦です。そのため操作が予期せぬ結果や悪影響を生じないよう、残りのシステム検査をまとめて行います。
 
 アドミッションコントローラの仕組みは認証と認可の仕組みに似ていますが、1つ異なる所があります。認証方式、認可方式のチェーンと違い、1つのアドミッションコントローラが失敗すると、チェーン全体が壊れリクエストは失敗します。
 
@@ -126,30 +126,30 @@ v1.8に含まれている認可方式の一例です:
 アドミッションコントローラは通常、リソース管理、セキュリティ、デフォルトおよび参照整合性に分類されます。これらは、ちょうどリソース管理の面倒を見ているアドミッションコントローラの一例です:
 
 - `InitialResources`は過去の使用量に基づいて、コンテナのリソースにデフォルトのリソース制限を設定します。
-- `LimitRanger`はコンテナの requests と limits にデフォルトを設定するか、特定のリソースの上限を適用します。(2GB以下のメモリ、デフォルトは512MB)
+- `LimitRanger`はコンテナの requests と limits にデフォルトを設定するか、特定のリソースの上限を適用します。(2GB 以下のメモリ、デフォルトは512MB)
 - `ResourceQuota`はネームスペース内のオブジェクト(pods, rc, service load balancers)の数もしくは消費リソースの総計(cpu, memory, disk)を算出して拒否します。
 
 ## etcd
 
-ここに来るまで、Kubernetes は受け取ったリクエストを入念にチェックし、次に進むように許可しました。次のステップでは kube-apiserver はHTTPリクエストをデシリアライズし、ランタイムオブジェクトを構築し（これは kubectl のジェネレータの逆の処理をやっているようなものです）、データストアに永続化します。詳細を追ってみましょう。
+ここに来るまで、Kubernetes は受け取ったリクエストを入念にチェックし、次に進むように許可しました。次のステップでは kube-apiserver は HTTP リクエストをデシリアライズし、ランタイムオブジェクトを構築し（これは kubectl のジェネレータの逆の処理をやっているようなものです）、データストアに永続化します。詳細を追ってみましょう。
 
 どのようにして kube-apisever はリクエストを受け取った際に何をすべきか知るのでしょうか。実際のところ、リクエストが実際に届く”前”に極めて複雑で連続した処理が実行されます。1から始めましょう。バイナリファイルが実行されるときです。
 
 1. `kube-apiserver`のバイナリが実行されたとき、[サーバーチェイン（server chain）が作成](https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/server.go#L119)され、API Aggregation を可能にします。これは基本的にはマルチ apiserver をサポートするものです（私達が気にする必要はありません）。
-1. このとき、デフォルトの実装のみを提供する[汎用的なapiserverが作られます](https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/server.go#L149)。
-1. 生成された OpenAPIスキーマ は[apiserverの設定情報](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/server/config.go#L149)に配置されます。
-1. kube-apiserver はスキーマの中で明示されたすべてのAPIグループに対して、抽象化された汎用的なストレージとして動作するように[ストレージ・プロバイダー（storage provider）](https://github.com/kubernetes/kubernetes/blob/c7a1a061c3dc5acabcc0c35b3b96a6935dccf546/pkg/master/master.go#L410)を設定します。これが kube-apiserver がリソースの状態にアクセスまたは変更するときに対話する相手です。
-1. kube-apiserver は各APIグループについて、それぞれのグループバージョンの各HTTPルートに[RESTマッピングを登録します](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/groupversion.go#L92)。これで kube-apiserver が各リクエストのマッピングを保持し、マッチするリクエストを見つけた際に正しいロジックに導くことができるようになります。
-1. 私達のユースケースでは、[POSTハンドラ](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/installer.go#L710)が登録され、最終的に[リソースを生成するハンドラ](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L37)が紐付きます。
+1. このとき、デフォルトの実装のみを提供する[汎用的な apiserver が作られます](https://github.com/kubernetes/kubernetes/blob/master/cmd/kube-apiserver/app/server.go#L149)。
+1. 生成された OpenAPI スキーマ は[apiserver の設定情報](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/server/config.go#L149)に配置されます。
+1. kube-apiserver はスキーマの中で明示されたすべての API グループに対して、抽象化された汎用的なストレージとして動作するように[ストレージ・プロバイダー（storage provider）](https://github.com/kubernetes/kubernetes/blob/c7a1a061c3dc5acabcc0c35b3b96a6935dccf546/pkg/master/master.go#L410)を設定します。これが kube-apiserver がリソースの状態にアクセスまたは変更するときに対話する相手です。
+1. kube-apiserver は各 API グループについて、それぞれのグループバージョンの各 HTTP ルートに[REST マッピングを登録します](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/groupversion.go#L92)。これで kube-apiserver が各リクエストのマッピングを保持し、マッチするリクエストを見つけた際に正しいロジックに導くことができるようになります。
+1. 私達のユースケースでは、[POST ハンドラ](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/installer.go#L710)が登録され、最終的に[リソースを生成するハンドラ](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L37)が紐付きます。
 
-ここまでで、kube-apiserver はどのルートが存在し、リクエストがマッチしたときに、どのハンドラとどのストレージ・プロバイダーが呼び出されるのかという内部的なマッピングを保持していることとなります。本当に賢いやつですね！さあ、次は私達のHTTPリクエストが飛んでくるところを想像してみましょう。
+ここまでで、kube-apiserver はどのルートが存在し、リクエストがマッチしたときに、どのハンドラとどのストレージ・プロバイダーが呼び出されるのかという内部的なマッピングを保持していることとなります。本当に賢いやつですね！さあ、次は私達の HTTP リクエストが飛んでくるところを想像してみましょう。
 
 1. ハンドラチェーンがリクエストのパターン（すなわち登録したルート）にマッチする場合、ルートに登録した[ハンドラを実行します](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/server/handler.go#L143)。そうでない場合、[パスに基づいたハンドラ](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/server/mux/pathrecorder.go#L248)に戻ってきます（これが`/api`を呼んだ際に起こることです）。パス対してどのハンドラも登録されていない場合、[not found handler](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/server/mux/pathrecorder.go#L254)が呼ばれ、結果は404が返されます。
-1. 幸いにも私達には[`createHandler`](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L37)というルートが登録されています!これが何をするかというと、まず初めにHTTPリクエストをデコードし、APIリソースのバージョンが期待されるJSONであるかどうかといった基本的なバリデーションを行います。
+1. 幸いにも私達には[`createHandler`](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L37)というルートが登録されています!これが何をするかというと、まず初めに HTTP リクエストをデコードし、API リソースのバージョンが期待される JSON であるかどうかといった基本的なバリデーションを行います。
 1. 次に監視と最終的な許可の[処理が行われます](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L93-L104)。
-1. リソースは[指定されたストレージ・プロバイダー](https://github.com/kubernetes/apiserver/blob/19667a1afc13cc13930c40a20f2c12bbdcaaa246/pkg/registry/generic/registry/store.go#L327)によって[etcdに保存されます](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L111) 。通常はキーは`<namespace>/<name>`の形ですが、変更が可能です。
+1. リソースは[指定されたストレージ・プロバイダー](https://github.com/kubernetes/apiserver/blob/19667a1afc13cc13930c40a20f2c12bbdcaaa246/pkg/registry/generic/registry/store.go#L327)によって[etcd に保存されます](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L111) 。通常はキーは`<namespace>/<name>`の形ですが、変更が可能です。
 1. 生成時のエラーはすべてキャッチされ、最終的にストレージ・プロバイダーが`get`を呼び出してオブジェクトが作成されたかどうかを確認します。もし追加でファイナライズ処理が必要であれば、生成後に呼び出されるハンドラとデコレータ（訳注：ミドルウェアに相当する処理）が呼び出されます。
-1. HTTPレスポンスが[生成され](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L131-L142)、返却されます。
+1. HTTP レスポンスが[生成され](https://github.com/kubernetes/apiserver/blob/7001bc4df8883d4a0ec84cd4b2117655a0009b6c/pkg/endpoints/handlers/create.go#L131-L142)、返却されます。
 
 たくさんのステップがありましたね！複雑な処理を詳細まで追っていくことは本当に素晴らしい体験です。なぜなら apiserver がどれだけのことをしているかを知ることができるからです。まとめると、今や私達の Deployment は etcd に存在しています。しかし、断っておきますが、まだそれを実際に見ることはできないのです...
 
@@ -251,24 +251,24 @@ kube-apiserver がその Binding オブジェクトを受け取ると、レジ�
 ## kubelet 
 
 ### Pod sync
-これまでのメインコントローラのループの流れについてまとめます。HTTPリクエストは認証、認可、アドミッションコントロールのステージを通って来ます。Deployment, Replicaset, 3つの Pod のリソースはetcdに保存されます。一連の initializer が実行されます。最後に Pod は適切なノードに配置されるようにスケジュールされます。私達が想像している状態はetcd内に保存されています。次のステップではワーカーノードをまたいで分散させます。これは、kubernetes のような分散システムではポイントとなります！これは kubelet と呼ばれるコンポーネントを通して実行されます。さあ流れを追ってみましょう！
+これまでのメインコントローラのループの流れについてまとめます。HTTP リクエストは認証、認可、アドミッションコントロールのステージを通って来ます。Deployment, Replicaset, 3つの Pod のリソースはetcdに保存されます。一連の initializer が実行されます。最後に Pod は適切なノードに配置されるようにスケジュールされます。私達が想像している状態はetcd内に保存されています。次のステップではワーカーノードをまたいで分散させます。これは、kubernetes のような分散システムではポイントとなります！これは kubelet と呼ばれるコンポーネントを通して実行されます。さあ流れを追ってみましょう！
 
-kubelet は kubernetes クラスタすべてのノードで動いるエージェントで、Pod のライフルサイクルの責任を負っています。これは、Pod（kubernetesの概念）の抽象化と構成要素であるコンテナの間のすべての変換ロジックを取り扱うことを意味します。また、ボリュームのマウント、コンテナのlogging、ガベージコレクションとその他の多くの重要なことに関連するすべてのロジックを取り扱っています。
+kubelet は kubernetes クラスタすべてのノードで動いるエージェントで、Pod のライフルサイクルの責任を負っています。これは、Pod（kubernetes の概念）の抽象化と構成要素であるコンテナの間のすべての変換ロジックを取り扱うことを意味します。また、ボリュームのマウント、コンテナのlogging、ガベージコレクションとその他の多くの重要なことに関連するすべてのロジックを取り扱っています。
 
 kubelet について簡潔に説明するとコントローラのようなものです！20秒ごと（この値は設定可能）に kube-apiserver に Pod を問い合わせ、 `NodeName` がkubeletの動いているノードの[名前と一致するもの]((https://github.com/kubernetes/kubernetes/blob/3b66adb8bc6929e1205bcb2bc32f380c39be8381/pkg/kubelet/config/apiserver.go#L34) )をフィルタリングします。kubeletがリストを持っていると、自身の内部キャッシュと比較することによって新たな追加を検出し、不一致が存在すれば同期を始めます。その同期のプロセスはがどのようなものか見てみましょう。
 
 
 1. Pod が作成されると、Pod のレイテンシをトラッキングするための Prometheus で使われているいくつかの[スタートアップメトリクスを登録します](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/kubelet.go#L1519)。
-1. 次に、Pod の現在のフェーズの状態を表す[PodStatusオブジェクト](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L1287)を生成します。Pod のフェーズは、Pod がライフサイクルのどの状態にあるかの概要です。例として `Pending` , `Running` , `Succeeded` , `Failed` , `Unknown` などがあります。この状態を生成するのはとても複雑なので、正確に何が起こるか見てみます。
+1. 次に、Pod の現在のフェーズの状態を表す[PodStatus オブジェクト](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L1287)を生成します。Pod のフェーズは、Pod がライフサイクルのどの状態にあるかの概要です。例として `Pending` , `Running` , `Succeeded` , `Failed` , `Unknown` などがあります。この状態を生成するのはとても複雑なので、正確に何が起こるか見てみます。
     - 初めに `PodSyncHandlers` のチェーンが順番に実行されます。それぞれのハンドラは Pod がまだノード上にあるべきかをチェックします。もし Pod がもうそこに属していないと判断された場合、Pod のフェーズは [`PodFailed` に変わり](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L1293-L1297)、最終的にノードから削除されます。これらの例としては `activeDeadlineSecounds` を超えた（ジョブで使用された）後に Pod を削除することが挙げられます。
     - 次に、Pod のフェーズは init コンテナと実際のコンテナのステータスによって決まります。コンテナがまだ起動されてない場合は [waiting](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/kubelet_pods.go#L1244) として分類されます。`waiting`コンテナがいるPodは [`Pending`](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/kubelet_pods.go#L1258-L1261) フェーズになります。
-    - 最後に、Pod の状態はそのコンテナの状態によって決定されます。コンテナランタイムによって、まだコンテナを作成していないときは [`PodReadyが` Falseに設定されます](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/status/generate.go#L70-L81)。
+    - 最後に、Pod の状態はそのコンテナの状態によって決定されます。コンテナランタイムによって、まだコンテナを作成していないときは [`PodReadyが` False に設定されます](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/status/generate.go#L70-L81)。
 1. PodStatus が作られた後、その情報は Pod ステータスマネージャに送信されます。これは apiserver を通して etcd に非同期で更新しています。
-1. 次に、Pod が正しいセキュリティ権限を持っているか確認するために、一連の admission ハンドラが実行されます。これらには、[AppArmorプロファイルとNO_NEW_PRIVS](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/kubelet.go#L883-L884)の適用が含まれています。この段階で拒否されたポッドは無期限に `pending` 状態となります。
+1. 次に、Pod が正しいセキュリティ権限を持っているか確認するために、一連の admission ハンドラが実行されます。これらには、[AppArmor プロファイルと NO_NEW_PRIVS](https://github.com/kubernetes/kubernetes/blob/fc8bfe2d8929e11a898c4557f9323c482b5e8842/pkg/kubelet/kubelet.go#L883-L884)の適用が含まれています。この段階で拒否されたポッドは無期限に `pending` 状態となります。
 1. もし`cgroups-per-qos` ランタイムフラグが指定されていたら、kubelet は pod のための cgroup を作成し、リソースパラメータを適用します。これは、Pod のサービス品質(QoS)処理を向上させるためです。
-1. Pod 用のデータディレクトリが[作成されます](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L77)。Podディレクトリ（通常は `/var/run/kubelet/pods/<pod ID>` ）、ボリュームディレクトリ ( `<podDir>/volumes` )、pluginsディレクトリ（ `<podDir>/plugins` ）が含まれます。
+1. Pod 用のデータディレクトリが[作成されます](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L77)。Pod ディレクトリ（通常は `/var/run/kubelet/pods/<pod ID>` ）、ボリュームディレクトリ ( `<podDir>/volumes` )、plugins ディレクトリ（ `<podDir>/plugins` ）が含まれます。
 1. ボリュームマネージャは `Spec.Volumes` で定義されている関連ボリュームを[接続して待機](https://github.com/kubernetes/kubernetes/blob/2723e06a251a4ec3ef241397217e73fa782b0b98/pkg/kubelet/volumemanager/volume_manager.go#L33)します。マウントされているボリュームの種類によっては、長い待ち時間が必要になります。（cloud や NFS ボリューム等）
-1. `Spec.ImagePullSecret`で定義されたすべてのシークレットは、後でコンテナに注入できるように、[apiserverから取得され](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L788)ます。
+1. `Spec.ImagePullSecret`で定義されたすべてのシークレットは、後でコンテナに注入できるように、[apiserver から取得され](https://github.com/kubernetes/kubernetes/blob/dd9981d038012c120525c9e6df98b3beb3ef19e1/pkg/kubelet/kubelet_pods.go#L788)ます。
 1. その後、コンテナランタイムはコンテナを実行します。（詳細は後述）
 
 ### CRI and pause containers
@@ -277,19 +277,19 @@ kubelet について簡潔に説明するとコントローラのようなもの
 
 拡張性を高めるために、kubelet の v1.5.0 から CRI(Container Runtime Interface)と呼ばれる概念を使用しています。一言で言うと、CRI は kubelet と特定のランタイム実装の間の抽象化を提供します。 通信は protocol buffer（早いJSONのようなもの）、gRPC API( Kubernetes の操作に適した)を介して行われます。これは、kubelet とランタイムの間の定義済みの契約を使うことによって、コンテナの実際の詳細実装は、大部分が無関係になるため非常に素晴らしいアイディアです。重要であるのは契約です。これは Kubernetes のコアのコードを変更する必要がないので、最小限のオーバーヘッドで新しいランタイムを追加することができます。
 
-ここで、コンテナのデプロイの話に戻りましょう… 最初に pod が開始されたとき、kubelet は[ `RunPodSandbox`リモートプロシジャーコール（RPC）を呼び出します](https://github.com/kubernetes/kubernetes/blob/2d64ce5e8e45e26b02492d2b6c85e5ebfb1e4761/pkg/kubelet/kuberuntime/kuberuntime_sandbox.go#L51)。sandboxはひとまとまりのコンテナを表すCRIの用語であり、Kubernetes 用語だと、ご想像のとおり、podです。この用語は故意に曖昧になっているので、実際にコンテナを使用できない他のランタイムの意味を失うことはありません。（sandbox が VM になるハイパーバイザーベースのランタイムを想像してください）
+ここで、コンテナのデプロイの話に戻りましょう… 最初に pod が開始されたとき、kubelet は[ `RunPodSandbox`リモートプロシジャーコール（RPC）を呼び出します](https://github.com/kubernetes/kubernetes/blob/2d64ce5e8e45e26b02492d2b6c85e5ebfb1e4761/pkg/kubelet/kuberuntime/kuberuntime_sandbox.go#L51)。sandbox はひとまとまりのコンテナを表す CRI の用語であり、Kubernetes 用語だと、ご想像のとおり、pod です。この用語は故意に曖昧になっているので、実際にコンテナを使用できない他のランタイムの意味を失うことはありません。（sandbox が VM になるハイパーバイザーベースのランタイムを想像してください）
 
-Docker を使うケースでは、ランタイム内で sandbox が”pause”コンテナを作成させます。pause コンテナサーバは、ワークロードコンテナで使われているような多数のトップレベルのリソースをホストするため、Pod内の他のすべてのコンテナの親のように機能します。これらの "resource" は Linux namespaces です（IPC, network, PID）。もし Linux で動くコンテナに馴染みがないなら、簡単に復習しましょう。Linux カーネルは namespace の概念を持っていて、それはホストOSが専用の一連のリソース(CPUやメモリなど)を作り出すのを許可し、プロセスに提供します。
+Docker を使うケースでは、ランタイム内で sandbox が”pause”コンテナを作成させます。pause コンテナサーバは、ワークロードコンテナで使われているような多数のトップレベルのリソースをホストするため、Pod 内の他のすべてのコンテナの親のように機能します。これらの "resource" は Linux namespaces です（IPC, network, PID）。もし Linux で動くコンテナに馴染みがないなら、簡単に復習しましょう。Linux カーネルは namespace の概念を持っていて、それはホストOSが専用の一連のリソース(CPU やメモリなど)を作り出すのを許可し、プロセスに提供します。
 Cgroupsは、Linux がリソースを割り与える方法であるため（リソース使用量を監視する警察のような）重要になります。リソースの確保が保証され、強制隔離されたプロセスをホストするために、Docker はこれらの両方の機能を使用します。詳細は `b0rk` の驚くべき投稿を確認して下さい。 [What even is a Container?](https://jvns.ca/blog/2016/10/10/what-even-is-a-container/)
 
-pause コンテナは namespace のすべてをホストし、子コンテナがそれを共有できる方法を提供します。同じネットワーク namespace の一部であることによって得られる一つのメリットは、同じ Pod 内のコンテナが`localhost` を使って他のものを参照できることです。 
-pause コンテナの２つ目の役割はPID ネームスペースを関連付けることです。これらの namespace のタイプは木の階層構造を形成し、 トップの"init"プロセスが死んだプロセスの ”刈り取り” をする責任を持ちます。どのように動くかの詳細は、[great blog post](https://www.ianlewis.org/en/almighty-pause-container)をチェックして下さい。pause コンテナが作られた後、ディスクにチェックポイント(保持)され動き始めます。
+pause コンテナは namespace のすべてをホストし、子コンテナがそれを共有できる方法を提供します。同じネットワーク namespace の一部であることによって得られる一つのメリットは、同じ Pod 内のコンテナが `localhost` を使って他のものを参照できることです。 
+pause コンテナの２つ目の役割は PID ネームスペースを関連付けることです。これらの namespace のタイプは木の階層構造を形成し、 トップの"init"プロセスが死んだプロセスの ”刈り取り” をする責任を持ちます。どのように動くかの詳細は、[great blog post](https://www.ianlewis.org/en/almighty-pause-container)をチェックして下さい。pause コンテナが作られた後、ディスクにチェックポイント(保持)され動き始めます。
 
 ### CNI and pod networking
 
-さて、Pod の土台が出来上がりました。　Pod 間通信を可能にする全 Namespace の情報を持つ Pauseコンテナです。　しかし、ネットワークはどのように機能しどのように設定されているのでしょうか？
+さて、Pod の土台が出来上がりました。　Pod 間通信を可能にする全 Namespace の情報を持つ Pause コンテナです。　しかし、ネットワークはどのように機能しどのように設定されているのでしょうか？
 
-kubelet が Pod のネットワークを設定すると、タスクを"CNI"プラグインに委任します。CNIは「Container Network Interface」の略で、Container Runtime Interface と同じように動作します。端的に言うと、CNIは、さまざまなネットワークプロバイダがさまざまなネットワーク実装をコンテナに使用できるようにするための抽象概念です。プラグインは登録されており、kubelet は JSON データ（設定ファイルはここです。　/etc/cni/net.d　）を関連する CNI バイナリ（ここにあります　/opt/cni/bin）に stdin を介してストリーミングすることによってプラグインとやりとりします。これは JSON の設定例です。
+kubelet が Pod のネットワークを設定すると、タスクを"CNI"プラグインに委任します。CNI は「Container Network Interface」の略で、Container Runtime Interface と同じように動作します。端的に言うと、CNI は、さまざまなネットワークプロバイダがさまざまなネットワーク実装をコンテナに使用できるようにするための抽象概念です。プラグインは登録されており、kubelet は JSON データ（設定ファイルはここです。　/etc/cni/net.d　）を関連する CNI バイナリ（ここにあります　/opt/cni/bin）に stdin を介してストリーミングすることによってプラグインとやりとりします。これは JSON の設定例です。
 
 ```yaml
 {
@@ -314,42 +314,42 @@ kubelet が Pod のネットワークを設定すると、タスクを"CNI"プ�
 この次の話は CNI プラグインに依存していますが、引き続き bridgeCNI プラグインを見てみましょう。
 
 1. プラグインは最初に root のネットワーク Namespace にローカルの Linux ブリッジを設定し、そのホスト上のすべてのコンテナにサービスを提供します。
-2. 次に、Pause コンテナのネットワーク Namespace にインターフェース（vethペアの一方の端）を挿入し、もう一方の端をブリッジに接続します。vethペアの概念を捉えるのに最適なのは、これを大きなチューブと捉えることです。一方がコンテナに接続され、もう一方がルートネットワークNamespaceにあり、パケットがその間を通過できるようになります。
-3. 次に、PauseコンテナのインターフェースにIPを割り当て、ルーティングを設定します。これにより、Podに独自のIPアドレスが割り当てられます。IP割り当ては、JSON構成に指定されているIPAMプロバイダーに委任されます。
-  - IPAMプラグインは、メインネットワークのプラグインと似ています。バイナリを介して呼び出され、標準化されたインターフェースを持ちます。それぞれがコンテナのインターフェースのIP /サブネットを、ゲートウェイルーティングとともに決定し、この情報をメインプラグインに返す必要があります。最も一般的なIPAMプラグインは`host-local` と呼ばれ、事前定義されたアドレス範囲のセットからIPアドレスを割り当てます。状態をホストファイルシステムのローカルに保存するため、単一ホスト上のIPアドレスの一意性が保証されます。
-4. DNSの場合、kubeletはCNIプラグインに内部DNSサーバのIPアドレスを指定します。これにより、コンテナのresolv.confファイルが適切に設定されます。
+2. 次に、Pause コンテナのネットワーク Namespace にインターフェース（veth ペアの一方の端）を挿入し、もう一方の端をブリッジに接続します。veth ペアの概念を捉えるのに最適なのは、これを大きなチューブと捉えることです。一方がコンテナに接続され、もう一方がルートネットワーク Namespace にあり、パケットがその間を通過できるようになります。
+3. 次に、Pause コンテナのインターフェースにIPを割り当て、ルーティングを設定します。これにより、Pod に独自の IP アドレスが割り当てられます。IP 割り当ては、JSON 構成に指定されている IPAM プロバイダーに委任されます。
+  - IPAM プラグインは、メインネットワークのプラグインと似ています。バイナリを介して呼び出され、標準化されたインターフェースを持ちます。それぞれがコンテナのインターフェースのIP /サブネットを、ゲートウェイルーティングとともに決定し、この情報をメインプラグインに返す必要があります。最も一般的な IPAM プラグインは`host-local` と呼ばれ、事前定義されたアドレス範囲のセットから IP アドレスを割り当てます。状態をホストファイルシステムのローカルに保存するため、単一ホスト上の IP アドレスの一意性が保証されます。
+4. DNS の場合、kubelet は CNI プラグインに内部 DNS サーバの IP アドレスを指定します。これにより、コンテナの `resolv.conf` ファイルが適切に設定されます。
 
 この一連のプロセスが完了すると、プラグインは JSON データを kubelet に返して操作の結果を示します。
 
 ### Inter-host networking
 
-これまで、コンテナがホストに接続する方法について説明してきましたが、ホストはどのように通信するのでしょうか。異なるマシン上の2つのPodが通信したい場合に必ず発生します。
+これまで、コンテナがホストに接続する方法について説明してきましたが、ホストはどのように通信するのでしょうか。異なるマシン上の2つの Pod が通信したい場合に必ず発生します。
 
-これは通常、オーバーレイネットワーキングと呼ばれる概念を使用して実現されます。これは、複数のホスト間でルーティングを動的に同期させる方法です。人気のオーバーレイネットワークプロバイダの1つが Flannel です。インストール時のメインの役割は、クラスタ内の複数のノード間にレイヤ3の IPv4 ネットワークを提供することです。Flannel はコンテナがホストにネットワーク接続される方法（これは CNI が担っている仕事です）を制御するのではなく、トラフィックが _ホスト間_ で転送される方法を制御します。これを行うには、ホストのサブネットを選択して etcd に登録します。次に、クラスタルートのローカル設定を維持し、発信パケットを UDP データグラムにカプセル化して、正しいホストに到達できるようにします。詳細については、[CoreOSのドキュメント](https://github.com/coreos/flannel)を確認ください。
+これは通常、オーバーレイネットワーキングと呼ばれる概念を使用して実現されます。これは、複数のホスト間でルーティングを動的に同期させる方法です。人気のオーバーレイネットワークプロバイダの1つが Flannel です。インストール時のメインの役割は、クラスタ内の複数のノード間にレイヤ3の IPv4 ネットワークを提供することです。Flannel はコンテナがホストにネットワーク接続される方法（これは CNI が担っている仕事です）を制御するのではなく、トラフィックが _ホスト間_ で転送される方法を制御します。これを行うには、ホストのサブネットを選択して etcd に登録します。次に、クラスタルートのローカル設定を維持し、発信パケットを UDP データグラムにカプセル化して、正しいホストに到達できるようにします。詳細については、[CoreOS のドキュメント](https://github.com/coreos/flannel)を確認ください。
 
 
 ### Container startup
 
 すべてのネットワーク関連の動作が完了しました。ではあとは何が残っているでしょうか？　そう、コンテナを実際に起動する必要があります。
 
-サンドボックスの初期化が完了してアクティブになると、kubelet はコンテナの作成を開始できます。最初に PodSpec で定義されている[initコンテナを起動](https://github.com/kubernetes/kubernetes/blob/5adfb24f8f25a0d57eb9a7b158db46f9f46f0d80/pkg/kubelet/kuberuntime/kuberuntime_manager.go#L690) し、次にメインコンテナ自体を起動します。実行するプロセスは以下になります。
+サンドボックスの初期化が完了してアクティブになると、kubelet はコンテナの作成を開始できます。最初に PodSpec で定義されている[init コンテナを起動](https://github.com/kubernetes/kubernetes/blob/5adfb24f8f25a0d57eb9a7b158db46f9f46f0d80/pkg/kubelet/kuberuntime/kuberuntime_manager.go#L690) し、次にメインコンテナ自体を起動します。実行するプロセスは以下になります。
 
-1. [コンテナイメージのpull](https://github.com/kubernetes/kubernetes/blob/5f9f4a1c5939436fa320e9bc5973a55d6446e59f/pkg/kubelet/kuberuntime/kuberuntime_container.go#L90) コンテナイメージをpullします。PodSpec で定義の secrets はすべてプライベートレジストリで使用されます。
+1. [コンテナイメージの pull](https://github.com/kubernetes/kubernetes/blob/5f9f4a1c5939436fa320e9bc5973a55d6446e59f/pkg/kubelet/kuberuntime/kuberuntime_container.go#L90) コンテナイメージを pull します。PodSpec で定義の secrets はすべてプライベートレジストリで使用されます。
 
-2. [コンテナの作成](https://github.com/kubernetes/kubernetes/blob/5f9f4a1c5939436fa320e9bc5973a55d6446e59f/pkg/kubelet/kuberuntime/kuberuntime_container.go#L115) CRIを介してコンテナを作成します。これは`ContainerConfig`、親 PodSpec から構造（コマンド、画像、ラベル、マウント、デバイス、環境変数などが定義されているもの）を作成してから protobufs を介して CRI プラグインに送信することによって行われます。Docker の場合は、ペイロードを逆シリアル化して、デーモンAPI に送信するための独自の構成構造体を生成します。その過程で、コンテナにいくつかのメタデータラベル（コンテナタイプ、ログパス、サンドボックスIDなど）が適用されます。
+2. [コンテナの作成](https://github.com/kubernetes/kubernetes/blob/5f9f4a1c5939436fa320e9bc5973a55d6446e59f/pkg/kubelet/kuberuntime/kuberuntime_container.go#L115) CRI を介してコンテナを作成します。これは`ContainerConfig`、親 PodSpec から構造（コマンド、画像、ラベル、マウント、デバイス、環境変数などが定義されているもの）を作成してから protobufs を介して CRI プラグインに送信することによって行われます。Docker の場合は、ペイロードを逆シリアル化して、デーモン API に送信するための独自の構成構造体を生成します。その過程で、コンテナにいくつかのメタデータラベル（コンテナタイプ、ログパス、サンドボックス ID など）が適用されます。
 
-3. 次に、コンテナをCPUマネージャに登録します。これは、`UpdateContainerResources`CRIメソッドを使用してコンテナをローカルノード上のCPUのセットに割り当てるversion 1.8の新しい機能です。
+3. 次に、コンテナを CPU マネージャに登録します。これは、`UpdateContainerResources` CRI メソッドを使用してコンテナをローカルノード上の CPU のセットに割り当てる version 1.8 の新しい機能です。
 
 4. その後、コンテナが[起動](https://github.com/kubernetes/kubernetes/blob/5f9f4a1c5939436fa320e9bc5973a55d6446e59f/pkg/kubelet/kuberuntime/kuberuntime_container.go#L135)します。
 
-5. 開始後のコンテナライフサイクルフックが登録されている場合は、それらが実行されます。フックはタイプ`Exec`（コンテナ内で特定のコマンドを実行する）または`HTTP`（コンテナエンドポイントに対してHTTP要求を実行する）のいずれかです。PostStartフックの実行に時間がかかりすぎたり、ハングアップしたり、失敗した場合、コンテナは決して`running`ステータスに到達しません。
+5. 開始後のコンテナライフサイクルフックが登録されている場合は、それらが実行されます。フックはタイプ`Exec`（コンテナ内で特定のコマンドを実行する）または`HTTP`（コンテナエンドポイントに対して HTTP 要求を実行する）のいずれかです。PostStart フックの実行に時間がかかりすぎたり、ハングアップしたり、失敗した場合、コンテナは決して`running`ステータスに到達しません。
 
 
 ## Wrap-up
 
 これで終わりです。
 
-1つ以上のWorkerノードで3つのコンテナが実行中になっていることでしょう。すべてのネットワーキング、volume, secretはkubeletによって生成され、CRIプラグインを通してコンテナになりました。
+1つ以上の Worker ノードで3つのコンテナが実行中になっていることでしょう。すべてのネットワーキング、volume, secret は kubelet によって生成され、CRI プラグインを通してコンテナになりました。
 
 ---
 
@@ -364,4 +364,4 @@ kubelet が Pod のネットワークを設定すると、タスクを"CNI"プ�
 - [@yasuhiro1711](https://github.com/yasuhiro1711)
 - [@zuiurs](https://github.com/zuiurs)
 
-翻訳のフィードバックは[こちら](https://github.com/cloud-native-lab/what-happens-when-k8s)に issue もしくは Pull Request をお願いします。
+翻訳のフィードバックは[こちら](https://github.com/cloud-native-lab/what-happens-when-k8s)に Issue もしくは Pull Request をお願いします。
