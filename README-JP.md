@@ -355,7 +355,7 @@ kubelet が Pod のネットワークを設定すると、タスクを "CNI" プ
 
 翻訳者一覧 (アルファベット順)
 - [@chokkoyamada](https://github.com/chokkoyamada)
-- [@hasebem-ca](https://github.om/hasebem-ca)
+- [@hasebem-ca](https://github.com/hasebem-ca)
 - [@kentakozuka](https://github.com/kentakozuka)
 - [@makocchi-git](https://github.com/makocchi-git)
 - [@shiftky](https://github.com/shiftky)
