@@ -46,7 +46,7 @@ Kubernetes の素晴らしい部分の 1 つは、使い勝手の良い API を�
 
 kubectl が最初に行うことはクライアントサイドの検証です。これにより、 _必ず_ 失敗するリクエスト(例：サポートされていないリソースの作成や、[不正なイメージ](https://github.com/kubernetes/kubernetes/blob/9a480667493f6275c22cc9cd0f69fb0c75ef3579/pkg/kubectl/cmd/run.go#L251)の使用)は即座に失敗し、kube-apiserver へリクエストが行われません。このため不要な負荷が軽減され、システムのパフォーマンスが向上します。
 
-検証後、kubectl は kube-apiserver へ送信する HTTP リクエストの組み立てを開始します。全ての Kubernetes へのアクセスや状態の変更の試みは API サーバを介して行われ、API サーバは etcd と通信を行います。kubectl クライアントも同様です。HTTP リクエストを組み立てるために kubernetes は[ジェネレーター](https://kubernetes.io/docs/reference/kubectl/conventions/#generators)と呼ばれるものを使用します。ジェネレーターとはシリアライズを行う抽象概念です。
+検証後、kubectl は kube-apiserver へ送信する HTTP リクエストの組み立てを開始します。全ての Kubernetes へのアクセスや状態の変更の試みは API サーバーを介して行われ、API サーバーは etcd と通信を行います。kubectl クライアントも同様です。HTTP リクエストを組み立てるために kubernetes は[ジェネレーター](https://kubernetes.io/docs/reference/kubectl/conventions/#generators)と呼ばれるものを使用します。ジェネレーターとはシリアライズを行う抽象概念です。
 
 分かりづらいかもしれませんが、実は `kubectl run` で Deployment だけでなく複数のリソースタイプを指定できます。これを機能させるために、kubectl は ジェネレーター名が `--generator` で明示的に指定されていない限り、リソースタイプを[推測します](https://github.com/kubernetes/kubernetes/blob/7650665059e65b4b22375d1e28da5306536a12fb/pkg/kubectl/cmd/run.go#L231-L257)。
 
@@ -89,7 +89,7 @@ Deployment を作成したいということが分かると、`DeploymentV1Beta1
 
 リクエストが送られて、次に何が起こるでしょうか。ここで kube-apiserver が登場します。すでに説明したように、kube-apiserver は永続化そしてクラスターの状態を取得するためのシステムコンポーネントとクライアントの主要なインターフェースです。その機能を実行するには、誰が送信者か検証できる必要があります。この過程は認証と呼ばれます。
 
-apiserver はどのようにリクエストを認証するのでしょうか。サーバが最初に起動する時、ユーザーに与えられたすべての[CLI フラグ](https://kubernetes.io/docs/admin/kube-apiserver/)を確認し、適切な認証方式のリストを組み立てます。例を見てみましょう。`--client-ca-file`が渡された場合は、x509 認証方式を追加し、`--token-auth-file`が与えられた事を確認した時、token 認証方式をリストに追加します。リクエストを受信する度に、[1つでも成功するまで認証方式チェーンを通して実行されます](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/union/union.go#L54):
+apiserver はどのようにリクエストを認証するのでしょうか。サーバーが最初に起動する時、ユーザーに与えられたすべての[CLI フラグ](https://kubernetes.io/docs/admin/kube-apiserver/)を確認し、適切な認証方式のリストを組み立てます。例を見てみましょう。`--client-ca-file`が渡された場合は、x509 認証方式を追加し、`--token-auth-file`が与えられた事を確認した時、token 認証方式をリストに追加します。リクエストを受信する度に、[1つでも成功するまで認証方式チェーンを通して実行されます](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/union/union.go#L54):
 
 
 - [x509 ハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/x509/x509.go#L60) は HTTP リクエストが CA ルート証明書によって署名された TLS 鍵でエンコードされていることを検証します
@@ -224,7 +224,7 @@ Kubernetes はオーナーリファレンス(親の ID を参照する子のフ�
 
 もう気づいているかも知れませんが、RBAC Authorizer や Deployment コントローラーなどの一部のコントローラーは動作するためにクラスターの状態を持ってくる必要があります。RBAC Authorizer の例に戻ると、我々はリクエストが来たときに Authenticator が初期のユーザー状態の表現を後の処理で使用するために保存するということを知っています。それから RBAC Authorizer はこれを使用してそのユーザーに関連する全ての Role と Role Binding を etcd 内から取得します。コントローラーはどのようにしてそのようなリソースにアクセスや修正をすることになっているのでしょうか？これは一般的なユースケースであり、Kubernetes 内のインフォーマーによって解決されていることがわかります。
 
-インフォーマーとはコントローラーにストレージイベントをサブスクライブさせ、それらに関係するリソースのリストを簡単に取得する図式です。うまく動くように抽象化を提供することの他に、キャッシング (キャッシングは不要な kube-apiserver のコネクションを減らすのと、サーバ側とコントローラー側での多重のシリアライゼーションを減らすため重要です) などの多くの仕組みも管理しています。この設計を使用することで、他のコントローラーのことを気にすること無くスレッドセーフな方法で通信できるようになります。
+インフォーマーとはコントローラーにストレージイベントをサブスクライブさせ、それらに関係するリソースのリストを簡単に取得する図式です。うまく動くように抽象化を提供することの他に、キャッシング (キャッシングは不要な kube-apiserver のコネクションを減らすのと、サーバー側とコントローラー側での多重のシリアライゼーションを減らすため重要です) などの多くの仕組みも管理しています。この設計を使用することで、他のコントローラーのことを気にすること無くスレッドセーフな方法で通信できるようになります。
 
 インフォーマーがコントローラーに関してどのように機能するかについての詳細は、この [ブログ記事](http://borismattijssen.github.io/articles/kubernetes-informers-controllers-reflectors-stores) をチェックしてください。
 
@@ -279,7 +279,7 @@ kubelet について簡潔に説明するとコントローラーのようなも
 
 ここで、コンテナのデプロイの話に戻りましょう… 最初に Pod が開始されたとき、kubelet は [`RunPodSandbox` リモートプロシージャーコール（RPC）を呼び出します](https://github.com/kubernetes/kubernetes/blob/2d64ce5e8e45e26b02492d2b6c85e5ebfb1e4761/pkg/kubelet/kuberuntime/kuberuntime_sandbox.go#L51)。サンドボックス (sandbox) はひとまとまりのコンテナを表す CRI の用語であり、Kubernetes 用語だと、ご想像のとおり、Pod です。この用語は故意に曖昧になっているので、実際にコンテナを使用できない他のランタイムの意味を失うことはありません。（サンドボックスが VM になるハイパーバイザーベースのランタイムを想像してください）
 
-Docker を使うケースでは、ランタイム内でサンドボックスが ”pause” コンテナを作成させます。pause コンテナサーバは、ワークロードコンテナで使われているような多数の最上位のリソースをホストするため、Pod 内の他のすべてのコンテナの親のように機能します。これらの"リソース"とは Linux namespaces のことです（IPC, network, PID）。もし Linux で動くコンテナに馴染みがないなら、簡単に復習しましょう。Linux カーネルは namespace の概念を持っていて、それはホスト OS が専用の一連のリソース(CPU やメモリなど)を作り出すのを許可し、プロセスに提供します。
+Docker を使うケースでは、ランタイム内でサンドボックスが ”pause” コンテナを作成させます。pause コンテナサーバーは、ワークロードコンテナで使われているような多数の最上位のリソースをホストするため、Pod 内の他のすべてのコンテナの親のように機能します。これらの"リソース"とは Linux namespaces のことです（IPC, network, PID）。もし Linux で動くコンテナに馴染みがないなら、簡単に復習しましょう。Linux カーネルは namespace の概念を持っていて、それはホスト OS が専用の一連のリソース(CPU やメモリなど)を作り出すのを許可し、プロセスに提供します。
 Cgroups は、Linux がリソースを割り与える方法であるため（リソース使用量を監視する警察のような）重要になります。リソースの確保が保証され、強制隔離されたプロセスをホストするために、Docker はこれらの両方の機能を使用します。詳細は `b0rk` の驚くべき投稿を確認して下さい。 [What even is a Container?](https://jvns.ca/blog/2016/10/10/what-even-is-a-container/)
 
 pause コンテナは namespace のすべてをホストし、子コンテナがそれを共有できる方法を提供します。同じネットワーク namespace の一部であることによって得られる一つのメリットは、同じ Pod 内のコンテナが `localhost` を使って他のコンテナを参照できることです。 
@@ -317,7 +317,7 @@ kubelet が Pod のネットワークを設定すると、タスクを "CNI" プ
 2. 次に、pause コンテナのネットワーク namespace にインターフェース（veth ペアの一方の端）を挿入し、もう一方の端をブリッジに接続します。veth ペアの概念を捉えるのに最適なのは、これを大きなチューブと捉えることです。一方がコンテナに接続され、もう一方が root ネットワーク namespace にあり、パケットがその間を通過できるようになります。
 3. 次に、pause コンテナのインターフェースに IP アドレスを割り当て、ルーティングを設定します。これにより、Pod に独自の IP アドレスが割り当てられます。IP アドレス割り当ては、JSON 構成に指定されている IPAM プロバイダーに委任されます。
   - IPAM プラグインは、メインネットワークのプラグインと似ています。バイナリを介して呼び出され、標準化されたインターフェースを持ちます。それぞれがコンテナのインターフェースの IP アドレス/サブネットを、ゲートウェイルーティングとともに決定し、この情報をメインプラグインに返す必要があります。最も一般的な IPAM プラグインは `host-local` と呼ばれ、事前定義されたアドレス範囲のセットから IP アドレスを割り当てます。状態をホストファイルシステムのローカルに保存するため、単一ホスト上の IP アドレスの一意性が保証されます。
-4. DNS の場合、kubelet は CNI プラグインに内部 DNS サーバの IP アドレスを指定します。これにより、コンテナの `resolv.conf` ファイルが適切に設定されます。
+4. DNS の場合、kubelet は CNI プラグインに内部 DNS サーバーの IP アドレスを指定します。これにより、コンテナの `resolv.conf` ファイルが適切に設定されます。
 
 この一連のプロセスが完了すると、プラグインは操作の結果と共に JSON データを kubelet に返します。
 
