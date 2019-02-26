@@ -89,7 +89,7 @@ Deployment を作成したいということが分かると、`DeploymentV1Beta1
 
 リクエストが送られて、次に何が起こるでしょうか。ここで kube-apiserver が登場します。すでに説明したように、kube-apiserver は永続化そしてクラスターの状態を取得するためのシステムコンポーネントとクライアントの主要なインターフェースです。その機能を実行するには、誰が送信者か検証できる必要があります。この過程は認証と呼ばれます。
 
-apiserver はどのようにリクエストを認証するのでしょうか。サーバーが最初に起動する時、ユーザーに与えられたすべての[CLI フラグ](https://kubernetes.io/docs/admin/kube-apiserver/)を確認し、適切な認証方式のリストを組み立てます。例を見てみましょう。`--client-ca-file`が渡された場合は、x509 認証方式を追加し、`--token-auth-file`が与えられた事を確認した時、token 認証方式をリストに追加します。リクエストを受信する度に、[1つでも成功するまで認証方式チェーンを通して実行されます](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/union/union.go#L54):
+apiserver はどのようにリクエストを認証するのでしょうか。サーバーが最初に起動する時、ユーザーに与えられたすべての[CLI フラグ](https://kubernetes.io/docs/admin/kube-apiserver/)を確認し、適切な認証方式のリストを組み立てます。例を見てみましょう。もし`--client-ca-file`が渡された場合は、x509 認証方式を追加し、`--token-auth-file`が渡された場合は、token 認証方式をリストに追加します。リクエストを受信する度に、[1つでも成功するまで認証方式チェーンを通して実行されます](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/union/union.go#L54):
 
 
 - [x509 ハンドラ](https://github.com/kubernetes/apiserver/blob/51bebaffa01be9dc28195140da276c2f39a10cd4/pkg/authentication/request/x509/x509.go#L60) は HTTP リクエストが CA ルート証明書によって署名された TLS 鍵でエンコードされていることを検証します
